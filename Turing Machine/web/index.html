@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>图灵机</title>
+  <style>
+:root {
+  --paper: #e9dfcc;
+  --panel: #f7f1e6;
+  --ink: #211c16;
+  --muted: #6e655b;
+  --line: #2a241c;
+  --head: #b8431f;
+  --head-soft: #f0d2c4;
+  --accept: #1d6b43;
+  --reject: #8d2434;
+  --mono: "Cascadia Mono", "Sarasa Mono SC", "Source Han Mono", "Noto Sans Mono", ui-monospace, monospace;
+  --serif: "Palatino Linotype", Palatino, "Songti SC", "Noto Serif SC", serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  background: radial-gradient(circle at 12% -10%, #f6efe2 0, transparent 42%), var(--paper);
+  font-family: var(--serif);
+  line-height: 1.45;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { background: transparent; border: 1px solid var(--line); padding: 0.35rem 0.7rem; cursor: pointer; }
+button:hover { background: #fffaf2; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--head); outline-offset: 2px; }
+.top { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-end; padding: 1.4rem 1.6rem 0.6rem; }
+.eyebrow { margin: 0; letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.78rem; color: var(--muted); }
+h1 { margin: 0.15rem 0 0; font-size: 1.85rem; font-weight: 600; }
+.stepbox { text-align: right; min-width: 5.5rem; }
+.stepbox strong { display: block; font-family: var(--mono); font-size: 2.4rem; line-height: 0.9; font-weight: 500; }
+.stepbox span { color: var(--muted); font-size: 0.85rem; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.55rem 0.8rem; align-items: center; padding: 0.4rem 1.6rem 0.9rem; border-bottom: 1px solid var(--line); }
+.seg { display: inline-flex; }
+.seg button + button { margin-left: -1px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+label.field { display: inline-flex; align-items: center; gap: 0.4rem; }
+input[type="text"] { border: 1px solid var(--line); background: var(--panel); padding: 0.3rem 0.45rem; width: 9rem; font-family: var(--mono); }
+input[type="range"] { accent-color: var(--head); }
+.banner { margin: 0.7rem 1.6rem 0; padding: 0.45rem 0.7rem; border: 1px solid var(--reject); color: var(--reject); background: #f8e8e6; }
+.banner.note { border-color: var(--line); color: var(--ink); background: transparent; }
+.stage { display: grid; grid-template-columns: minmax(280px, 0.92fr) minmax(340px, 1.2fr); gap: 1.4rem; padding: 1rem 1.6rem 0.4rem; align-items: start; }
+.panel h2 { margin: 0 0 0.45rem; font-size: 1.05rem; font-weight: 600; }
+.quiet { color: var(--muted); font-size: 0.92rem; margin: 0.35rem 0; }
+.rules-wrap { border: 1px solid var(--line); background: var(--panel); max-height: min(46vh, 28rem); overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.92rem; }
+th, td { padding: 0.32rem 0.5rem; text-align: left; border-bottom: 1px solid #ddd4c4; white-space: nowrap; }
+th { position: sticky; top: 0; background: #efe6d6; font-family: var(--serif); font-weight: 600; }
+tr.active td { background: var(--head-soft); }
+tr.filled td { color: var(--muted); }
+tr.filled.active td { color: var(--ink); }
+.source-block { margin: 0.2rem 1.6rem 0.6rem; }
+.source-block h2 { margin: 0; font-size: 1.05rem; }
+textarea { width: 100%; min-height: 12rem; resize: vertical; border: 1px solid var(--line); background: #fffdf8; padding: 0.7rem 0.8rem; font-family: var(--mono); font-size: 0.92rem; line-height: 1.45; }
+.statusline { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: baseline; margin-bottom: 0.7rem; }
+.badge { border: 1px solid var(--line); padding: 0.05rem 0.45rem; font-size: 0.86rem; }
+.badge.run { background: #f4e2d4; }
+.badge.write { background: #efe6d6; }
+.badge.accept { background: #d9eadf; color: var(--accept); border-color: var(--accept); }
+.badge.reject { background: #f6dfe2; color: var(--reject); border-color: var(--reject); }
+.tape { display: flex; gap: 0.35rem; overflow-x: auto; padding: 0.2rem 0.1rem 0.6rem; scroll-padding-inline: 2.5rem; }
+.slot { display: flex; flex-direction: column; align-items: center; min-width: 2.7rem; }
+.above { height: 1.45rem; font-family: var(--mono); font-weight: 700; color: var(--head); font-size: 0.95rem; }
+.cell { width: 2.55rem; height: 2.7rem; display: grid; place-items: center; border: 1px solid var(--ink); background: #fffdf8; font-family: var(--mono); font-size: 1.15rem; }
+.cell.head { background: var(--head); color: #fff8f3; border-color: var(--head); }
+.idx { margin-top: 0.18rem; color: var(--muted); font-family: var(--mono); font-size: 0.72rem; }
+.idline { font-family: var(--mono); font-size: 1rem; padding: 0.45rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow-x: auto; white-space: pre; }
+.now { min-height: 1.4rem; font-family: var(--mono); }
+.trace-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0.3rem 1.6rem 0; }
+.trace-head h2 { margin: 0; font-size: 1.05rem; }
+.trace { margin: 0.35rem 1.6rem 1.4rem; max-height: 14rem; overflow: auto; border: 1px solid var(--line); background: var(--panel); font-family: var(--mono); font-size: 0.86rem; }
+.trace button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #e4dac8; border-radius: 0; padding: 0.28rem 0.6rem; background: transparent; }
+.trace button.here { background: var(--head-soft); }
+.foot { padding: 0 1.6rem 1.4rem; color: var(--muted); font-size: 0.88rem; }
+@media (max-width: 860px) {
+  .top { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding-inline: 1rem; }
+  .stepbox { text-align: left; }
+  .stage { grid-template-columns: 1fr; padding-inline: 1rem; }
+  .machine { order: -1; }
+  textarea { min-height: 7rem; }
+  h1 { font-size: 1.45rem; }
+  .toolbar, .trace, .trace-head, .foot, .banner, .source-block { margin-left: 1rem; margin-right: 1rem; }
+  .toolbar, .trace-head, .foot { padding-inline: 0; }
+}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">Universal machine</p>
+      <h1>程序在左，读写头在带子上</h1>
+    </div>
+    <div class="stepbox">
+      <strong id="step-readout">0</strong>
+      <span>步</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="示例">
+      <button type="button" id="ex-successor">后继</button>
+      <button type="button" id="ex-anbn">0ⁿ1ⁿ</button>
+      <button type="button" id="ex-partial">补全</button>
+    </div>
+    <label class="field">输入
+      <input id="input" type="text" value="111" spellcheck="false" autocomplete="off">
+    </label>
+    <button type="button" id="load">装入</button>
+    <button type="button" id="back">上一步</button>
+    <button type="button" id="step">单步</button>
+    <button type="button" id="play">运行</button>
+    <button type="button" id="reset">回到开头</button>
+    <label class="field">间隔
+      <input id="speed" type="range" min="40" max="900" value="280">
+      <span id="speed-label">280 ms</span>
+    </label>
+  </div>
+
+  <p id="error" class="banner" hidden role="alert"></p>
+  <p id="dirty" class="banner note" hidden>源代码或输入已改，装入后才会生效。</p>
+
+  <main class="stage">
+    <section class="panel program" aria-labelledby="prog-title">
+      <h2 id="prog-title">程序</h2>
+      <p id="prog-meta" class="quiet"></p>
+      <div id="rules-wrap" class="rules-wrap">
+        <table>
+          <thead>
+            <tr><th>状态</th><th>读</th><th>新状态</th><th>写</th><th>动作</th></tr>
+          </thead>
+          <tbody id="rules"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel machine" aria-labelledby="state-title">
+      <h2 id="state-title">状态</h2>
+      <div class="statusline" aria-live="polite">
+        <span id="badge" class="badge">未装入</span>
+        <span>状态 <strong id="state-name">—</strong></span>
+        <span>h = <strong id="head-no">—</strong></span>
+      </div>
+      <div id="tape" class="tape" role="img" aria-label="带"></div>
+      <p id="idline" class="idline"></p>
+      <p id="now" class="now"></p>
+    </section>
+  </main>
+
+  <div class="trace-head">
+    <h2>过程</h2>
+    <p id="trace-count" class="quiet"></p>
+  </div>
+  <div id="trace" class="trace"></div>
+  <section class="source-block" aria-labelledby="source-title">
+    <h2 id="source-title">源代码</h2>
+    <p class="quiet">改这里，再按装入。空白符写成 _，一行一条转移。</p>
+    <textarea id="source" spellcheck="false" aria-label="可修改的源代码"></textarea>
+  </section>
+  <p class="foot">空白符印成 ⊔。空格单步，左右方向键回放。</p>
+
+  <script src="machine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

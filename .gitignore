@@ -1,0 +1,6 @@
+*.hi
+*.o
+*.exe
+__pycache__/
+dist-newstyle/
+.ghc.environment.*
